@@ -33,13 +33,18 @@ import org.opencms.workplace.tools.modules.CmsModulesList;
 import org.opencmshispano.multimoduleimporter.util.Unzipper;
 
 /**
- * Class to upload several modules with HTTP uploads.
+ * Workplace tool dialog that provides support for multi-modules HTTP-uploads.
  * <p>
- * 
+ * The dialog renders the browser's native file upload dialog, allowing the user to select a
+ * "multi-package" zip bundle that will be uploaded to the server and unzipped.
+ * <p>
+ * Upon unzipping, the list of modules contained in the multi-package are read
+ * and saved in the {@link CmsModulesMultiUploadFromHttp#SESSION_ATT_NAME_MODULES_LIST session}
+ * for further processing by the {@link CmsModulesMultiUploadFromHttp#DIALOG_URI dialog jsp}.
+ * <p>
+ *
  * @author Sergio Raposo Vargas
- * 
  * @version $Revision: 1.0 $
- * 
  * @since 9.0.1
  */
 public class CmsModulesMultiUploadFromHttp extends A_CmsImportFromHttp {
@@ -49,10 +54,7 @@ public class CmsModulesMultiUploadFromHttp extends A_CmsImportFromHttp {
      * */
     public static final String DIALOG_URI = PATH_WORKPLACE + "admin/modules/modules_multi_import.jsp";
 
-    /**
-     * Modulename parameter.
-     * */
-    public static final String PARAM_MODULE = "module";
+    public static final String SESSION_ATT_NAME_MODULES_LIST = "modulesToImport";
 
     /**
      * The log object for this class.
@@ -108,13 +110,12 @@ public class CmsModulesMultiUploadFromHttp extends A_CmsImportFromHttp {
         }
 
         // Descomprimir el zip
-
         Unzipper.unzip(OpenCms.getSystemInfo().getPackagesRfsPath() + File.separator + CmsSystemInfo.FOLDER_MODULES
                 + File.separator + filename);
 
         Enumeration zipEntries = Unzipper.getZipEntries(OpenCms.getSystemInfo().getPackagesRfsPath() + File.separator
                 + CmsSystemInfo.FOLDER_MODULES + File.separator + filename);
-        List<CmsModule> modules = new ArrayList<CmsModule>();
+        Map<String, CmsModule> modules = new HashMap<String,CmsModule>();
         List<String> zipElementNames = new ArrayList<String>();
         CmsConfigurationException exception = null;
         CmsModule module = null;
@@ -128,7 +129,7 @@ public class CmsModulesMultiUploadFromHttp extends A_CmsImportFromHttp {
                 String entryName = it.next();
                 module = CmsModuleImportExportHandler.readModuleFromImport(OpenCms.getSystemInfo().getPackagesRfsPath()
                         + File.separator + CmsSystemInfo.FOLDER_MODULES + File.separator + entryName);
-                modules.add(module);
+                modules.put(entryName, module);
             } catch (CmsConfigurationException e) {
                 LOG.error(e.getMessage());
                 exception = e;
@@ -157,7 +158,7 @@ public class CmsModulesMultiUploadFromHttp extends A_CmsImportFromHttp {
                     + File.separator + filename);
             f.delete();
             param.put(PARAM_CLOSELINK, CmsToolManager.linkForToolPath(getJsp(), "/modules"));
-            session.setAttribute("modulesToImport", modules);
+            session.setAttribute(SESSION_ATT_NAME_MODULES_LIST, modules);
             getToolManager().jspForwardPage(this, CmsModulesListMultiReplaceReport.MULTI_IMPORT_ACTION_REPORT, param);
         }
     }
