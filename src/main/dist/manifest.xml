@@ -14,7 +14,7 @@
 		<group>OpenCms Hispano</group>
 		<class/>
 		<description><![CDATA[Módulo que nos permite realizar una importación de más de un módulo de golpe]]></description>
-		<version>1.0.0</version>
+		<version>1.0.1</version>
 		<authorname><![CDATA[Sergio Raposo Vargas]]></authorname>
 		<authoremail><![CDATA[sergio.raposo@opencmshispano.com]]></authoremail>
 		<datecreated/>
@@ -217,8 +217,8 @@
 			<accesscontrol/>
 		</file>
 		<file>
-			<source>system/modules/org.opencmshispano.multimoduleimporter/lib/OCHMultiModuleImporter-1.0.jar</source>
-			<destination>system/modules/org.opencmshispano.multimoduleimporter/lib/OCHMultiModuleImporter-1.0.jar</destination>
+			<source>system/modules/org.opencmshispano.multimoduleimporter/lib/multimoduleimporter-1.0.jar</source>
+			<destination>system/modules/org.opencmshispano.multimoduleimporter/lib/multimoduleimporter-1.0.jar</destination>
 			<type>binary</type>
 			<uuidstructure>a628921f-df49-11e3-b065-e0db55d3d908</uuidstructure>
 			<uuidresource>a6289220-df49-11e3-b065-e0db55d3d908</uuidresource>

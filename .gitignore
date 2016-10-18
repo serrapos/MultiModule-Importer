@@ -1,4 +1,5 @@
 /build
 /.gradle
 /.settings
-/bin
+/repos
+/.idea
