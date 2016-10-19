@@ -1,29 +1,9 @@
 package org.opencmshispano.multimoduleimporter;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.zip.ZipEntry;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.servlet.jsp.PageContext;
-
 import org.apache.commons.logging.Log;
 import org.opencms.configuration.CmsConfigurationException;
 import org.opencms.jsp.CmsJspActionElement;
-import org.opencms.main.CmsException;
-import org.opencms.main.CmsLog;
-import org.opencms.main.CmsRuntimeException;
-import org.opencms.main.CmsSystemInfo;
-import org.opencms.main.OpenCms;
+import org.opencms.main.*;
 import org.opencms.module.CmsModule;
 import org.opencms.module.CmsModuleImportExportHandler;
 import org.opencms.workplace.administration.A_CmsImportFromHttp;
@@ -31,6 +11,16 @@ import org.opencms.workplace.tools.CmsToolDialog;
 import org.opencms.workplace.tools.CmsToolManager;
 import org.opencms.workplace.tools.modules.CmsModulesList;
 import org.opencmshispano.multimoduleimporter.util.Unzipper;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.jsp.PageContext;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.zip.ZipEntry;
 
 /**
  * Workplace tool dialog that provides support for multi-modules HTTP-uploads.

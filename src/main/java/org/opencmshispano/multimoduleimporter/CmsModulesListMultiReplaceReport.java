@@ -4,15 +4,12 @@ import org.opencms.jsp.CmsJspActionElement;
 import org.opencms.module.CmsModule;
 import org.opencms.report.I_CmsReportThread;
 import org.opencms.workplace.list.A_CmsListReport;
-import org.opencms.workplace.tools.modules.CmsModulesUploadFromHttp;
-
-import java.util.List;
-import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.jsp.PageContext;
+import java.util.Map;
 
 /**
  * Provides a report for imporintg modules.
