@@ -1,13 +1,5 @@
 package org.opencmshispano.multimoduleimporter;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
-
 import org.apache.commons.logging.Log;
 import org.opencms.configuration.CmsConfigurationException;
 import org.opencms.file.CmsObject;
@@ -20,21 +12,22 @@ import org.opencms.report.A_CmsReportThread;
 import org.opencms.workplace.threads.CmsModuleDeleteThread;
 import org.opencms.workplace.threads.Messages;
 
+import java.io.File;
+import java.util.*;
+
 /**
  * Replaces a module.
  * <p>
- * 
+ *
  * @author Sergio Raposo Vargas
- * 
  * @version $Revision: 1.0 $
- * 
  * @since 9.0.1
  */
 public class CmsModuleMultiImportThread extends A_CmsReportThread {
 
     /**
      * The log object for this class.
-     * */
+     */
     private static final Log LOG = CmsLog.getLog(CmsModuleMultiImportThread.class);
 
     /**
@@ -43,98 +36,85 @@ public class CmsModuleMultiImportThread extends A_CmsReportThread {
     private static CmsModuleManager moduleManager = OpenCms.getModuleManager();
 
     /**
+     * Unsorted list of all filename -> module to be imported
+     */
+    private final Map<String, CmsModule> modules;
+
+    /**
+     * Ruta del fichero zip que contiene el conjunto de módulos.
+     */
+    private final String importPath;
+
+    /**
      * Hilo encargado de eliminar los módulos ya instalados.
      */
     private A_CmsReportThread deleteThread;
-    /**
-     * Lista de módulos a instalar.
-     */
-    private List<CmsModule> modules;
-    /**
-     * Lista de módulos a instalar.
-     */
-    private Map<String,String> modulesZip;
-    /**
-     * Lista con los nombres de los módulos a instalar.
-     */
-    private List moduleNames;
+
     /**
      * Fase por la que se encuentra el proceso.
      */
     private int phase;
+
     /**
      * Contenido del informe del proceso.
      */
     private String reportContent;
-    /**
-     * Ruta del fichero zip que contiene el conjunto de módulos.
-     */
-    private String importPath;
 
     /**
-     * Creates the module replace thread.
+     * Creates the module replace thread and sorts the list of modules to be imported considering the declared
+     * dependencies
      * <p>
-     * 
-     * @param cms the current cms context
-     * @param moduleName the name of the module
-     * @param zipName the name of the module ZIP file
+     *
+     * @param cms     the current cms context
+     * @param modules filename -> cmsmodule
      */
-    public CmsModuleMultiImportThread(final CmsObject cms, final List<CmsModule> modules) {
+    public CmsModuleMultiImportThread(final CmsObject cms, final Map<String, CmsModule> modules) {
 
         super(cms, org.opencms.workplace.threads.Messages.get().getBundle().key(
                 org.opencms.workplace.threads.Messages.GUI_DELETE_MODULE_THREAD_NAME_1));
 
         this.importPath = OpenCms.getSystemInfo().getPackagesRfsPath() + File.separator + "modules/";
         this.modules = modules;
-        moduleNames = new ArrayList<String>();
-        Iterator<CmsModule> it = modules.iterator();
-        
-        modulesZip = new HashMap<String,String>();
-        while (it.hasNext()) {
-        	CmsModule m = (CmsModule)it.next();
-            moduleNames.add(m.getName());
-            modulesZip.put(m.getName(),m.getVersion().getVersion());
-        }
-
-        CmsModuleManager manager = moduleManager;
-        CmsConfigurationException exception = null;
-        it = modules.iterator();
-        List<String> modulesToDelete = new ArrayList<String>();
-        while (it.hasNext()) {
-            CmsModule module = it.next();
-            if (moduleManager.getModule(module.getName()) != null) {
-                modulesToDelete.add(module.getName());
-            }
-        }
-        deleteThread = new CmsModuleDeleteThread(getCms(), modulesToDelete, true);
-        try {
-            moduleNames = CmsModuleManager.topologicalSort(moduleNames, importPath);
-        } catch (CmsConfigurationException e) {
-            LOG.error(e.getMessage());
-        }
+        phase = 0;
 
         initHtmlReport(cms.getRequestContext().getLocale());
-
-        phase = 0;
     }
 
     /**
-     * Collects all resource names belonging to a module in a Vector.
-     * <p>
-     * 
-     * @param moduleName the name of the module
-     * 
-     * @return Vector with path Strings of resources
+     * @return module name -> filename lookup table
      */
-    public static Vector getModuleResources(final String moduleName) {
+    private static Map<String, String> createNameFilenameLookupTable(Map<String, CmsModule> modules) {
+        Map<String, String> moduleNamesFilenames = new HashMap<String, String>(modules.size());
+        for (Map.Entry<String, CmsModule> e : modules.entrySet()) {
+            moduleNamesFilenames.put(e.getValue().getName(), e.getKey());
+        }
+        return moduleNamesFilenames;
+    }
 
-        Vector resNames = new Vector(moduleManager.getModule(moduleName).getResources());
-        return resNames;
+    /**
+     * @return list of modules topologically sorted if possible
+     */
+    private static List<String> createModulesList(Map<String, CmsModule> modules, String importPath) {
+        // (Yet) unsorted list of all module names
+        List<String> moduleNames = new ArrayList<String>(modules.size());
+        for (Map.Entry<String, CmsModule> e : modules.entrySet()) {
+            CmsModule m = e.getValue();
+            moduleNames.add(m.getName());
+        }
+
+        try {
+            moduleNames = CmsModuleManager.topologicalSort(moduleNames, importPath);
+        } catch (CmsConfigurationException e) {
+            // We'll have to deal with the unsorted list of modules
+            LOG.warn("Error sorting list of modules topologically: " + e.getMessage(), e);
+        }
+        return moduleNames;
     }
 
     /**
      * @see org.opencms.report.A_CmsReportThread#getReportUpdate()
      */
+    @Override
     public String getReportUpdate() {
 
         switch (phase) {
@@ -148,15 +128,14 @@ public class CmsModuleMultiImportThread extends A_CmsReportThread {
         return "";
     }
 
-    /**
-     * @see java.lang.Runnable#run()
-     */
+    @Override
     public void run() {
-
         if (LOG.isDebugEnabled()) {
-            LOG.debug(org.opencms.workplace.threads.Messages.get().getBundle().key(
-                    org.opencms.workplace.threads.Messages.LOG_REPLACE_THREAD_START_DELETE_0));
+            LOG.debug(Messages.get().getBundle().key(Messages.LOG_REPLACE_THREAD_START_DELETE_0));
         }
+
+        deleteThread = createDeleteThread(modules, moduleManager);
+
         // phase 1: delete the existing module
         phase = 1;
         deleteThread.start();
@@ -168,58 +147,109 @@ public class CmsModuleMultiImportThread extends A_CmsReportThread {
                 LOG.error(e.getLocalizedMessage(), e);
             }
         }
+
         // get remaining report contents
         reportContent = deleteThread.getReportUpdate();
         if (LOG.isDebugEnabled()) {
-            LOG.debug(org.opencms.workplace.threads.Messages.get().getBundle().key(
-                    org.opencms.workplace.threads.Messages.LOG_REPLACE_THREAD_START_IMPORT_0));
+            LOG.debug(Messages.get().getBundle().key(
+                    Messages.LOG_REPLACE_THREAD_START_IMPORT_0));
         }
+
         // phase 2: import the new modules
         phase = 2;
+        Map<String, String> moduleNamesFilenames = createNameFilenameLookupTable(modules);
+        List<String> moduleNames = createModulesList(modules, importPath);
+        importModules(moduleNames, moduleNamesFilenames);
+    }
 
+    /**
+     * @param modules       list of modules and their filenames to be deleted
+     * @param moduleManager
+     * @return a thread that in its run method will remove <code>modules</code> from OpenCms
+     */
+    private A_CmsReportThread createDeleteThread(Map<String, CmsModule> modules, CmsModuleManager moduleManager) {
+        List<String> installedModules = new ArrayList<String>();
+        for (Map.Entry<String, CmsModule> e : modules.entrySet()) {
+            CmsModule m = e.getValue();
+            // Module exists already and must be deleted
+            if (null != moduleManager.getModule(m.getName())) {
+                LOG.trace(String.format("Found module for file \"%s with name \"%s. Recording it for deletion.",
+                        e.getKey(), m.getName()));
+                installedModules.add(m.getName());
+            } else {
+                LOG.trace(String.format("Module for file \"%s with name \"%s not yet installed.",
+                        e.getKey(), m.getName()));
+            }
+        }
+        return new CmsModuleDeleteThread(getCms(), installedModules, true);
+    }
+
+    /**
+     * Import all named modules. This method installs each of the modules in <code>moduleNames</code>, if necessary
+     * walking through the list multiple times until all are installed.
+     *
+     * @param moduleNames          to import. If possible, this list should be sorted topologically
+     *                             (see {@link CmsModuleManager#topologicalSort(List, String)})
+     * @param moduleNamesFilenames <code>moduleName -> filename</code> lookup table used to find the filenames of the modules
+     */
+    private void importModules(List<String> moduleNames, Map<String, String> moduleNamesFilenames) {
+        // For debugging: count of passes through the list
+        int passes = 0;
+
+        // Iterate through the modules list as many times as necessary until no more modules can be installed.
+        // Successfully installed modules are removed from the list
         int lastSize = Integer.MAX_VALUE;
         int curSize = moduleNames.size();
-        boolean finished = false;
-        Iterator itModuleNames = null;
-        while (!finished) {
-            finished = !(curSize < lastSize);
+        boolean lastPass = false;
+        while (!lastPass) {
+            lastPass = (curSize == lastSize); // The previous pass didn't import any package
             lastSize = moduleNames.size();
-            itModuleNames = moduleNames.iterator();
+
+            // Next pass through the modules list
+            LOG.debug("Import modules - Pass " + passes + ". Yet " + lastSize + " modules to try to install");
+            Iterator<String> itModuleNames = moduleNames.iterator();
             while (itModuleNames.hasNext()) {
-                String moduleName = (String) itModuleNames.next();
-                if (importModule(moduleName, finished)) {
-                    itModuleNames.remove();
+                String moduleName = itModuleNames.next();
+                String moduleFilename = moduleNamesFilenames.get(moduleName);
+                try {
+                    boolean importedSuccessfully = importModule(moduleName, moduleFilename);
+                    if (importedSuccessfully) {
+                        itModuleNames.remove();
+                    }
+                } catch (Exception e) {
+                    if (lastPass) {
+                        // Only report errors during import as errors in the last pass (the module cannot be installed)
+                        getReport().println(e);
+                        LOG.error(Messages.get().getBundle().key(Messages.ERR_DB_IMPORT_0), e);
+                    } else {
+                        LOG.debug(String.format("Import modules - Pass %d. Cannot import \"%s\" from %s: %s",
+                                passes, moduleName, moduleFilename, e.getLocalizedMessage()), e);
+                    }
                 }
             }
             curSize = moduleNames.size();
+            passes++;
         }
     }
 
     /**
-     * 
-     * @param moduleName The name of the module to import
-     * @param finished
-     * @return true if module has been imported
+     * @param moduleName     Name of the module to import (e.g. <code>my.module</code>)
+     * @param moduleFilename The filename of the module to import (e.g. <code>my.module-1.0.1.zip</code>)
+     * @return <code>true</code> if module has been imported; <code>false</code> otherwise (module already installed
+     * or exception during module import)
+     * @throws Exception upon error during module import
      */
-    private boolean importModule(final String moduleName, final boolean finished) {
+    private boolean importModule(String moduleName, final String moduleFilename) throws Exception {
         CmsModule m = moduleManager.getModule(moduleName);
-        if (m == null) {
-        	String version = modulesZip.get(moduleName);
-            CmsImportParameters parameters = new CmsImportParameters(importPath + File.separator + moduleName + "_"+ version + ".zip", "/", true);
-            try {
-                OpenCms.getImportExportManager().importData(getCms(), getReport(), parameters);
-            } catch (Throwable e) {
-                if (finished) {
-                    getReport().println(e);
-                    if (LOG.isErrorEnabled()) {
-                        LOG.error(Messages.get().getBundle().key(Messages.ERR_DB_IMPORT_0), e);
-                    }
-                }
-                return false;
-            }
-            return true;
-        } else {
+        if (m != null) {
+            LOG.warn(String.format("Import module - Skipping module \"%s\" (%s): already installed!",
+                    moduleName, moduleFilename));
             return false;
         }
+        CmsImportParameters parameters = new CmsImportParameters(
+                importPath + File.separator + moduleFilename, "/", true);
+
+        OpenCms.getImportExportManager().importData(getCms(), getReport(), parameters);
+        return true;
     }
 }

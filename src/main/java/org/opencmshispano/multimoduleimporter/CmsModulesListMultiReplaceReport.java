@@ -5,12 +5,11 @@ import org.opencms.module.CmsModule;
 import org.opencms.report.I_CmsReportThread;
 import org.opencms.workplace.list.A_CmsListReport;
 
-import java.util.List;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.jsp.PageContext;
+import java.util.Map;
 
 /**
  * Provides a report for imporintg modules.
@@ -29,11 +28,7 @@ public class CmsModulesListMultiReplaceReport extends A_CmsListReport {
      */
     public static final String MULTI_IMPORT_ACTION_REPORT = "/system/workplace/admin/modules/reports/multi_import.jsp";
     /** Modules. */
-    private List<CmsModule> modules;
-    /**
-     * HttpSession object.
-     */
-    private HttpSession session;
+    private Map<String, CmsModule> modules;
 
     /**
      * Public constructor with JSP action element.
@@ -55,19 +50,8 @@ public class CmsModulesListMultiReplaceReport extends A_CmsListReport {
      */
     public CmsModulesListMultiReplaceReport(final PageContext context, final HttpServletRequest req, final HttpServletResponse res, final HttpSession session) {
         this(new CmsJspActionElement(context, req, res));
-        this.session = session;
-        modules = (List<CmsModule>) session.getAttribute("modulesToImport");
-    }
-
-    /**
-     * Gets the module parameter.
-     * <p>
-     * 
-     * @return the module parameter
-     */
-    public List<CmsModule> getModules() {
-
-        return modules;
+        modules = (Map<String, CmsModule>) session.getAttribute(
+                CmsModulesMultiUploadFromHttp.SESSION_ATT_NAME_MODULES_LIST);
     }
 
     /**
@@ -80,14 +64,4 @@ public class CmsModulesListMultiReplaceReport extends A_CmsListReport {
         return multiImportThread;
     }
 
-    /**
-     * Sets the module parameter.
-     * <p>
-     * 
-     * @param paramModule the module parameter
-     */
-    public void setModules(final List<CmsModule> modules) {
-
-        this.modules = modules;
-    }
 }

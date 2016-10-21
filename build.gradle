@@ -1,13 +1,10 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
+apply plugin: 'distribution'
 
 sourceCompatibility = 1.5
 version = '1.0'
-jar {
-    manifest {
-        attributes 'Implementation-Title': 'Gradle Quickstart', 'Implementation-Version': version
-    }
-}
+group = 'org.opencmshispano'
 
 repositories {
     mavenCentral()
@@ -22,9 +19,30 @@ dependencies {
 	
 }
 
-test {
-    systemProperties 'property': 'value'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Gradle Quickstart', 'Implementation-Version': version
+    }
 }
+
+distributions {
+    main {
+        contents {
+            into "/"
+            from ('src/main/java') {
+                exclude '**/*.java'
+                into "/system/modules/${group}.${baseName}/classes"
+            }
+
+            from (jar.archivePath) {
+                into "/system/modules/${group}.${baseName}/lib"
+            }
+        }
+    }
+}
+
+distZip.dependsOn jar
+distTar.dependsOn jar
 
 uploadArchives {
     repositories {
